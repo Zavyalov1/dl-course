@@ -146,26 +146,26 @@ class Tensor:
     def __add__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
             assert self.shape() == other.shape()
-            return Tensor(np.add(self.data, other.data))
-        return Tensor(self.data + other)
+            return Tensor(np.add(self.data, other.data), (self.data, other.data), "+")
+        return Tensor(self.data + other, (self.data, other), "+")
 
     def __mul__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
             assert self.shape() == other.shape()
-            return Tensor(np.mul(self.data, other.data))
-        return Tensor(self.data * other)
+            return Tensor(np.mul(self.data, other.data), (self.data, other.data), "*")
+        return Tensor(self.data * other, (self.data, other), "*")
     
     def __truediv__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
             assert self.shape() == other.shape()
-            return Tensor(np.true_divide(self.data, other.data))
-        return Tensor(np.true_divide(self.data, other))
+            return Tensor(np.true_divide(self.data, other.data), (self.data, other.data), "\")
+        return Tensor(np.true_divide(self.data, other), (self.data, other), "\")
     
     def __floordiv__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
             assert self.shape() == other.shape()
-            return Tensor(np.floor_divide(self.data, other.data))
-        return Tensor(np.floor_divide(self.data, other))
+            return Tensor(np.floor_divide(self.data, other.data), (self.data, other.data), "\\")
+        return Tensor(np.floor_divide(self.data, other), (self.data, other), "\\")
     
     def __radd__(self, other):
         return self + other
