@@ -210,6 +210,10 @@ class Tensor:
         out = Tensor(np.inner(self.data.flatten(), other.data.flatten()), (self.data, other.data))
                          
         return out
+                         
+    def sum(self) -> "Tensor":
+        out = Tensor(np.sum(self.data), (self,))
+        return out
 
     def shape(self):
         return self.data.shape()
