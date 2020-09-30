@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Union
-
+from math import log, exp
 
 class Value:
     """ stores a single scalar value and its gradient """
@@ -27,11 +27,11 @@ class Value:
 
     def __mul__(self, other: Union[int, float, "Value"]) -> "Value":
         other = other if isinstance(other, Value) else Value(other)
-        out = ...
+        out = Value(self.data * other.data, (self, other), "*")
 
         def _backward():
-            self.grad += ...
-            other.grad += ...
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
 
         out._backward = _backward
 
@@ -41,29 +41,28 @@ class Value:
         assert isinstance(
             other, (int, float)
         ), "only supporting int/float powers for now"
-        out = ...
+        out = Value(self.data ** other, (self, other), "**")
 
         def _backward():
-            self.grad += ...
+            self.grad += other * (self.data ** (other - 1)) * out.grad
 
         out._backward = _backward
 
         return out
 
-    def exp(self):
-        out = ...
+    def exp(self) -> "Value":
+        out = Value(exp(self.data), (self,), f"exp{self}")
 
         def _backward():
-            self.grad += ...
-
+            self.grad += out.data * out.grad
         out._backward = _backward
         return out
 
-    def relu(self):
-        out = ...
+    def relu(self) -> "Value":
+        out = Value(max(0, self.data), (self,), "ReLU")
 
         def _backward():
-            self.grad += ...
+            self.grad += (out.data > 0) * out.grad
 
         out._backward = _backward
 
@@ -87,7 +86,7 @@ class Value:
         # go one variable at a time and apply the chain rule to get its gradient
         self.grad = 1
         for v in reversed(topo):
-            # YOUR CODE GOES HERE
+            v._backward
 
     def __neg__(self):  # -self
         return self * -1
@@ -136,49 +135,64 @@ class Tensor:
     Tensor is very convenient when it comes to matrix multiplication,
     for example in Linear layers.
     """
-    def __init__(self, data):
+    def __init__(self, data, _children=(), _op=""):
         self.data = np.array(data)
+        self.grad = 0
+        # internal variables used for autograd graph construction
+        self._backward = lambda: None
+        self._prev = set(_children)
+        self._op = _op  # the op that produced this node, for graphviz / debugging / etc
 
-    def __add__(self, other):
+    def __add__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
             assert self.shape() == other.shape()
             return Tensor(np.add(self.data, other.data))
         return Tensor(self.data + other)
 
-    def __mul__(self, other):
-        return ...
+    def __mul__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
+        if isinstance(other, Tensor):
+            assert self.shape() == other.shape()
+            return Tensor(np.mul(self.data, other.data))
+        return Tensor(self.data * other)
     
-    def __truediv__(self, other):
-        return ...
+    def __truediv__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
+        if isinstance(other, Tensor):
+            assert self.shape() == other.shape()
+            return Tensor(np.true_divide(self.data, other.data))
+        return Tensor(np.true_divide(self.data, other))
     
-    def __floordiv__(self, other):
-        return ...
+    def __floordiv__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
+        if isinstance(other, Tensor):
+            assert self.shape() == other.shape()
+            return Tensor(np.floor_divide(self.data, other.data))
+        return Tensor(np.floor_divide(self.data, other))
     
     def __radd__(self, other):
-        return ...
+        return self + other
     
     def __rmull__(self, other):
-        return ...
+        return self * other
 
     def exp(self):
-        return ...
+        return exp(self)
 
-    def dot(self, other):
+    def dot(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
-            return ...
-        return ...
+            assert all(self.shape()[-1] == i for i in other.shape()[2:])
+            return Tensor(np.dot(self.data, other.data))
+        return Tensor(np.dot(self.data, other))
 
     def shape(self):
-        return self.data.shape
+        return self.data.shape()
 
     def argmax(self, dim=None):
-        return ...
+        return np.argmax(self, dim)
 
     def max(self, dim=None):
-        return ...
+        return np.max(self, dim)
 
     def reshape(self, *args, **kwargs):
-        self.data = ...
+        self.data = np.reshape(self.data, *args, **kwargs)
         return self
 
     def backward(self):
