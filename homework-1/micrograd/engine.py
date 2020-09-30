@@ -55,7 +55,9 @@ class Value:
 
         def _backward():
             self.grad += out.data * out.grad
+        
         out._backward = _backward
+        
         return out
 
     def relu(self) -> "Value":
@@ -136,7 +138,7 @@ class Tensor:
     for example in Linear layers.
     """
     def __init__(self, data, _children=(), _op=""):
-        self.data = np.array(data)
+        self.data = np.array([Value(i) for i in data])
         self.grad = 0
         # internal variables used for autograd graph construction
         self._backward = lambda: None
@@ -146,26 +148,53 @@ class Tensor:
     def __add__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
             assert self.shape() == other.shape()
-            return Tensor(np.add(self.data, other.data), (self.data, other.data), "+")
-        return Tensor(self.data + other, (self.data, other), "+")
+            out = Tensor(np.add(self.data, other.data), (self.data, other.data), "+")
+        else:
+            out = Tensor(self.data + other, (self.data, other), "+")
+        
+        def _backward():
+            self.grad += out.grad
+            other.grad += out.grad
+            
+        out._backward = _backward
+        
+        return out
 
-    def __mul__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
-        if isinstance(other, Tensor):
-            assert self.shape() == other.shape()
-            return Tensor(np.mul(self.data, other.data), (self.data, other.data), "*")
-        return Tensor(self.data * other, (self.data, other), "*")
+    def __mul__(self, other: Union[int, float]) -> "Tensor":
+        out = Tensor(self.data * other, (self.data, other), "*")
+            
+        def _backward():
+            self.grad += other * out.grad
+        
+        out._backward = _backward
+        
+        return out
+    
+    def __matmul__(self, other: "Tensor") -> "Tensor":
+        assert self.shape()[1] == other.shape()[0]
+        out = Tensor(np.matmul(self.data, other.data, (self.data, other.data), "@")
+        
+        def _backward():
+            self.grad += __matmul__(out.grad, other.data)
+            other.grad += __matmul__(out.grad, self.data)
+        
+        out._backward = _backward()
     
     def __truediv__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
             assert self.shape() == other.shape()
-            return Tensor(np.true_divide(self.data, other.data), (self.data, other.data), "\")
-        return Tensor(np.true_divide(self.data, other), (self.data, other), "\")
+            out = Tensor(np.true_divide(self.data, other.data), (self.data, other.data), "\")
+        else:
+            out = Tensor(np.true_divide(self.data, other), (self.data, other), "\")
+                         
+        return out
     
     def __floordiv__(self, other: Union[int, float, "Tensor"]) -> "Tensor":
         if isinstance(other, Tensor):
             assert self.shape() == other.shape()
-            return Tensor(np.floor_divide(self.data, other.data), (self.data, other.data), "\\")
-        return Tensor(np.floor_divide(self.data, other), (self.data, other), "\\")
+            out = Tensor(np.floor_divide(self.data, other.data), (self.data, other.data), "\\")
+        else:
+            out = Tensor(np.floor_divide(self.data, other), (self.data, other), "\\")
     
     def __radd__(self, other):
         return self + other
@@ -176,11 +205,11 @@ class Tensor:
     def exp(self):
         return exp(self)
 
-    def dot(self, other: Union[int, float, "Tensor"]) -> "Tensor":
-        if isinstance(other, Tensor):
-            assert all(self.shape()[-1] == i for i in other.shape()[2:])
-            return Tensor(np.dot(self.data, other.data))
-        return Tensor(np.dot(self.data, other))
+    def dot(self, other: "Tensor") -> "Tensor":
+        assert self.shape()[0] + self.shape()[1] == other.shape()[0] + other.shape()[1]
+        out = Tensor(np.inner(self.data.flatten(), other.data.flatten()), (self.data, other.data))
+                         
+        return out
 
     def shape(self):
         return self.data.shape()
